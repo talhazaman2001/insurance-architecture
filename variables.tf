@@ -1,55 +1,61 @@
-# variables.tf
-variable "environment" {
-  description = "Environment name like prod, dev, staging"
-  type        = string
+# Compute
+variable "ecs_cluster_name" {
+	type = string
+	description = "ECS Cluster Name"
 }
 
-variable "project_name" {
-  description = "Project or application name"
-  type        = string
+variable "service_names" {
+	type = map(string)
+	default = {
+		fraud_detection = "fraud-detection-engine"
+		risk_assessment = "risk-assessment-service"
+		claims_processing = "claims-processing-service"
+	}
 }
 
-# Compute
-variable "base_tags" {
-  description = "Base tags for all resources"
-  type = map(string)
+# Data-Storage
+variable "codepipeline_artifacts_arn" {
+    type = string
+    description = "CodePipeline Artifacts S3 Bucket ARN"
 }
 
-
-# Networking
-variable "api_gateway_endpoint" {
-  type = string
-  description = "API Gateway Endpoint"
-  default     = "https://placeholder.execute-api.region.amazonaws.com"
+variable "codepipeline_artifacts_bucket" {
+    type = string
+    description = "CodePipeline Artifacts S3 Bucket"
 }
 
-variable "waf_web_acl_id" {
-  type = string
-  description = "WAF Web ACL ID"
-  default     = "arn:aws:wafv2:eu-west-2:463470963000:regional/webacl/placeholder-id"
+# Monitoring
+variable "codebuild_log_group_arn" {
+    type = string
+    description = "CodeBuild CloudWatch Log Group ARN"
 }
 
-variable "waf_web_acl_arn" {
-  type = string
-  description = "WAF Web ACL ARN"
-  default     = "arn:aws:wafv2:eu-west-2:463470963000:regional/webacl/placeholder-id"
+# Networking
+
+variable "fraud_detection_engine_blue_tg_arn" {
+	type = string
 }
 
-variable "waf_log_group_arn" {
-  type = string
-  description = "WAF Log Group ARN"
-  default     = "arn:aws:wafv2:eu-west-2:463470963000:regional/webacl/placeholder-log-group"
+variable "fraud_detection_engine_green_tg_arn" {
+	type = string
 }
 
-# Security
-variable "cdn_arn" {
-  type = string
-  description = "CloudFront ARN"
-  default     = "arn:aws:cloudfront::463470963000:distribution/placeholder"
+variable "risk_assessment_service_blue_tg_arn" {
+	type = string
 }
 
-variable "api_gateway_log_group_arn" {
-  type = string
-  description = "API Gateway CloudWatch Log Group ARN"
-  default = "arn:aws:logs:eu-west-2:463470963000:log-group:placeholder-log-group"
+variable "risk_assessment_service_green_tg_arn" {
+	type = string
+}
+
+variable "claims_processing_service_blue_tg_arn" {
+	type = string
+}
+
+variable "claims_processing_service_green_tg_arn" {
+	type = string
+}
+
+variable "fargate_alb_listener_arn" {
+	type = string
 }

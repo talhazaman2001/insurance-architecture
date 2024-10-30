@@ -1,118 +1,443 @@
-# Analytics Modules
-module "analytics" {
-  source = "./modules/analytics"
+# Define Locals for CodeBuild
+locals {
+  common_build_config = {
+    build_timeout = 30
+    compute_type = "BUILD_GENERAL1_SMALL"
+    container_image = "aws/codebuild/standard:5.0"
+    github_repo = "https://github.com/talhazaman2001/insurance-architecture.git"
+  }
 
-  base_tags = var.base_tags
-  athena_results_bucket = module.data-storage.athena_results_bucket
-  insurance_bucket_id = module.data-storage.insurance_bucket_id
-  glue_role_arn = module.security.glue_role_arn
-  sagemaker_role_arn = module.security.sagemaker_role_arn
-  sagemaker_model_artifacts_id = module.data-storage.sagemaker_model_artifacts_id
+  services = {
+    fraud-detection-engine = {
+        name = "FraudDetectionEngineBuild"
+        buildspec = "cicd/fraud-buildspec/buildspec.yml"
+    }
+    risk-assessment-service = {
+        name = "RiskAssessmentServiceBuild"
+        buildspec = "cicd/risk-buildspec/buildspec.yml"
+    }
+    claims-processing-service = {
+        name = "ClaimsProcessingServiceBuild"
+        buildspec = "cicd/claims-buildspec/buildspec.yml"
+    }
+  }
 }
 
-# Compute Modules
-module "compute" {
-  source = "./modules/compute"
-  
-  base_tags = var.base_tags
-  private_subnets = module.networking.private_subnet_ids
-  kinesis_stream_arn = module.monitoring.kinesis_stream_arn
-  alb_sg_id = module.networking.alb_sg_id
-  api_gateway_role_arn = module.security.api_gateway_role_arn
-  api_gateway_attach = module.security.api_gateway_attach
-  insurance_bucket_arn = module.data-storage.insurance_bucket_arn
-  dynamodb_table_arn = module.data-storage.dynamodb_table_arn
-  fraud_detection_engine_log_group_name = "/aws/fargate/fraud-detection-engine"
-  risk_assessment_service_log_group_name = "/aws/fargate/risk-assessment-service"
-  claims_processing_service_log_group_name = "/aws/fargate/claims-processing-service"
-  vpc_id = module.networking.vpc_id
-  aurora_endpoint = module.data-storage.aurora_endpoint
-  dynamodb_table_name = module.data-storage.dynamodb_table_name
-  insurance_bucket_id = module.data-storage.insurance_bucket_id
-  xray_log_group_arn = module.monitoring.xray_log_group_arn
-  repository_urls = module.data-storage.repository_urls
-  fargate_alb_listener_arn = module.networking.fargate_alb_listener_arn
-  fraud_detection_engine_blue_tg_arn = module.networking.fraud_detection_engine_blue_tg_arn
-  risk_assessment_service_blue_tg_arn = module.networking.risk_assessment_service_blue_tg_arn
-  claims_processing_service_blue_tg_arn = module.networking.claims_processing_service_blue_tg_arn
-  fargate_execution_role_arn = module.security.fargate_execution_role_arn
-  fargate_task_role_arn = module.security.fargate_task_role_arn
+# Create CodeBuild Projects
+resource "aws_codebuild_project" "microservices_build" {
+    for_each = local.services
+    
+    name = each.value.name
+    service_role = aws_iam_role.codebuild_role.arn
+    build_timeout = local.common_build_config.build_timeout
+
+    source {
+      type = "GITHUB"
+      location = local.common_build_config.github_repo
+      buildspec = each.value.buildspec
+      git_clone_depth = 1
+    }
+
+    artifacts {
+      type = "S3"
+      location = var.codepipeline_artifacts_bucket
+      encryption_disabled = false
+    }
+
+    environment {
+      compute_type = local.common_build_config.compute_type
+      image = local.common_build_config.container_image
+      type = "LINUX_CONTAINER"
+      privileged_mode = true
+
+      environment_variable {
+        name = "AWS_DEFAULT_REGION"
+        value = "eu-west-2"
+      }
+
+      environment_variable {
+        name = "ECR_REGISTRY"
+        value = "463470963000.dkr.ecr.eu-west-2.amazonaws.com"
+      }
+
+      environment_variable {
+        name = "ECR_REPOSITORY"
+        value = "${each.key}"
+      }
+    }  
+
+    cache {
+      type = "LOCAL"
+      modes = ["LOCAL_DOCKER_LAYER_CACHE"]
+    } 
 }
 
-# Data-storage modules
-module "data-storage" {
-  source = "./modules/data-storage"
-  
-  base_tags = var.base_tags
-  private_subnets = module.networking.private_subnet_ids
-  vpc_id = module.networking.vpc_id
-  endpoint_sg = module.networking.vpc_interface_endpoint_sg_id
-  private_rt_id = [module.networking.private_rt_id]
-  fargate_tasks_sg_id = module.compute.fargate_tasks_sg_id
+# Create CodeDeploy Application
+resource "aws_codedeploy_app" "codedeploy_app" {
+    name = "insurance-microservices"
+    compute_platform = "ECS"
 }
 
+# Deployment Group for Fraud Detection Engine
+resource "aws_codedeploy_deployment_group" "fraud_detection_deployment_group" {
+    app_name = aws_codedeploy_app.codedeploy_app.name
+    deployment_group_name = "FraudDetectionBlueGreenDeploymentGroups"
+    service_role_arn = aws_iam_role.codedeploy_role.arn 
 
-# Monitoring modules
-module "monitoring" {
-  source = "./modules/monitoring"
-  
-  base_tags = var.base_tags
-  api_gateway_id = module.compute.api_gateway_id
-  fargate_alb_arn = module.networking.fargate_alb_arn
-  fraud_detection_engine_blue_tg_arn = module.networking.fraud_detection_engine_blue_tg_arn
-  risk_assessment_service_blue_tg_arn = module.networking.risk_assessment_service_blue_tg_arn
-  claims_processing_service_blue_tg_arn = module.networking.claims_processing_service_blue_tg_arn
-  ecs_cluster_name = module.compute.ecs_cluster_name
-  aurora_cluster_arn = module.data-storage.aurora_cluster_arn
-  sagemaker_endpoint_name = module.analytics.sagemaker_endpoint_name
-  waf_web_acl_name = module.security.waf_web_acl_name
-  classification_job_id = module.security.classification_job_id
+    auto_rollback_configuration {
+      enabled = true
+      events = ["DEPLOYMENT_FAILURE"]
+    }
+
+    deployment_style {
+      deployment_option = "WITH_TRAFFIC_CONTROL"
+      deployment_type = "BLUE_GREEN"
+    }
+
+    blue_green_deployment_config {
+      deployment_ready_option {
+        action_on_timeout = "CONTINUE_DEPLOYMENT"
+      }
+
+      terminate_blue_instances_on_deployment_success {
+        action = "TERMINATE"
+        termination_wait_time_in_minutes = 5
+      }
+    }
+
+    load_balancer_info {
+      target_group_pair_info {
+        prod_traffic_route {
+          listener_arns = [var.fargate_alb_listener_arn]
+        }
+
+        target_group {
+          name = var.fraud_detection_engine_blue_tg_arn
+        }
+
+        target_group {
+          name = var.fraud_detection_engine_green_tg_arn
+        }
+      }
+    }
+
+    deployment_config_name = "CodeDeployDefault.ECSAllAtOnce"
+
+    ecs_service {
+      cluster_name = var.ecs_cluster_name
+      service_name = var.service_names["fraud_detection"]
+    }
 }
 
-# Networking modules
-module "networking" {
-  source = "./modules/networking"
+# Deployment Group for Risk Assessment Service
+resource "aws_codedeploy_deployment_group" "risk_assessment_deployment_group" {
+    app_name = aws_codedeploy_app.codedeploy_app.name
+    deployment_group_name = "RiskAssessmentBlueGreenDeploymentGroups"
+    service_role_arn = aws_iam_role.codedeploy_role.arn 
 
-  environment = var.environment
-  private_subnets = module.networking.private_subnet_ids
-  public_subnets = module.networking.public_subnet_ids
-  base_tags = var.base_tags
-  api_gateway_endpoint = var.api_gateway_endpoint
-  waf_web_acl_id = var.waf_web_acl_id
-  waf_web_acl_arn = var.waf_web_acl_arn
-  waf_log_group_arn = var.waf_log_group_arn
+    auto_rollback_configuration {
+      enabled = true
+      events = ["DEPLOYMENT_FAILURE"]
+    }
+
+    deployment_style {
+      deployment_option = "WITH_TRAFFIC_CONTROL"
+      deployment_type = "BLUE_GREEN"
+    }
+
+    blue_green_deployment_config {
+      deployment_ready_option {
+        action_on_timeout = "CONTINUE_DEPLOYMENT"
+      }
+
+      terminate_blue_instances_on_deployment_success {
+        action = "TERMINATE"
+        termination_wait_time_in_minutes = 5
+      }
+    }
+
+    load_balancer_info {
+      target_group_pair_info {
+        prod_traffic_route {
+          listener_arns = [var.fargate_alb_listener_arn]
+        }
+
+        target_group {
+          name = var.risk_assessment_service_blue_tg_arn
+        }
+
+        target_group {
+          name = var.risk_assessment_service_green_tg_arn
+        }
+      }
+    }
+
+    deployment_config_name = "CodeDeployDefault.ECSAllAtOnce"
+
+    ecs_service {
+      cluster_name = var.ecs_cluster_name
+      service_name = var.service_names["risk_assessment"]
+    }
 }
 
-# Security Modules
-module "security" {
-  source = "./modules/security"
-  
-  base_tags = var.base_tags
-  insurance_bucket_arn = module.data-storage.insurance_bucket_arn
-  athena_results_arn = module.data-storage.athena_results_arn
-  sagemaker_log_group_arn = module.monitoring.sagemaker_log_group_arn
-  fargate_alb_arn = module.networking.fargate_alb_arn
-  api_gateway_log_group_arn = var.api_gateway_log_group_arn
-  alb_log_group_arn = module.monitoring.alb_log_group_arn
-  dynamodb_table_arn = module.data-storage.dynamodb_table_arn
-  repositories = module.data-storage.repository_arns
-  fraud_detection_engine_log_group_arn = module.monitoring.fraud_detection_engine_log_group_arn
-  risk_assessment_service_log_group_arn = module.monitoring.risk_assessment_service_log_group_arn
-  claims_processing_service_log_group_arn = module.monitoring.claims_processing_service_log_group_arn
-  macie_log_group_arn = module.monitoring.macie_log_group_arn
-  sagemaker_model_artifacts_arn = module.data-storage.sagemaker_model_artifacts_arn
-  aurora_cluster_arn = module.data-storage.aurora_cluster_arn
-  sns_topic_arn = module.monitoring.sns_topic_arn
-  kinesis_stream_arn = module.monitoring.kinesis_stream_arn
-  sagemaker_endpoint_arn = module.analytics.sagemaker_endpoint_arn
-  sagemaker_model_arn = module.analytics.sagemaker_model_arn
-  cdn_arn = var.cdn_arn
-  route53_zone_arn = module.networking.route53_zone_arn
-  waf_log_group_arn = module.monitoring.waf_log_group_arn
-  sagemaker_xgboost_repository_arn = module.data-storage.sagemaker_xgboost_repository_arn
-  repository_arns = module.data-storage.repository_arns
+# Deployment Group for Claims Processing Service
+resource "aws_codedeploy_deployment_group" "claims_processing_deployment_group" {
+    app_name = aws_codedeploy_app.codedeploy_app.name
+    deployment_group_name = "ClaimsProcessingBlueGreenDeploymentGroups"
+    service_role_arn = aws_iam_role.codedeploy_role.arn 
+
+    auto_rollback_configuration {
+      enabled = true
+      events = ["DEPLOYMENT_FAILURE"]
+    }
+
+    deployment_style {
+      deployment_option = "WITH_TRAFFIC_CONTROL"
+      deployment_type = "BLUE_GREEN"
+    }
+
+    blue_green_deployment_config {
+      deployment_ready_option {
+        action_on_timeout = "CONTINUE_DEPLOYMENT"
+      }
+
+      terminate_blue_instances_on_deployment_success {
+        action = "TERMINATE"
+        termination_wait_time_in_minutes = 5
+      }
+    }
+
+    load_balancer_info {
+      target_group_pair_info {
+        prod_traffic_route {
+          listener_arns = [var.fargate_alb_listener_arn]
+        }
+
+        target_group {
+          name = var.claims_processing_service_blue_tg_arn
+        }
+
+        target_group {
+          name = var.claims_processing_service_green_tg_arn
+        }
+      }
+    }
+
+    deployment_config_name = "CodeDeployDefault.ECSAllAtOnce"
+
+    ecs_service {
+      cluster_name = var.ecs_cluster_name
+      service_name = var.service_names["claims_processing"]
+    }
 }
 
+# Create CodeStar Connection
+resource "aws_codestarconnections_connection" "github_connection" {
+    name = "my-github-connection"
+    provider_type = "GitHub"
+}
 
+# CodePipeline to automate Fraud Detection deployment process
+resource "aws_codepipeline" "fraud_detection" {
+    name = "fraud-detection-pipeline"
+    role_arn = aws_iam_role.codepipeline_role.arn
 
+    artifact_store {
+      type = "S3"
+      location = "${var.codepipeline_artifacts_bucket}"
+    }
+
+    stage {
+        name = "Source"
+        
+        action {
+            name = "GitHubSource"
+            category = "Source"
+            owner = "AWS"
+            provider = "CodeStarSourceConnection"
+            version = "1"
+            output_artifacts = ["SourceOutput"]
+            configuration = {
+                ConnectionArn = "arn:aws:codestar-connections:eu-west-2:463470963000:connection/5bcc636d-e780-4617-a94e-957c222cf902"
+                FullRepositoryId = "talhazaman2001/insurance-architecture"
+                BranchName = "main"
+            }
+        }
+    }
+
+    stage {
+        name = "Build"
+
+        action {
+          name = "Build"
+          category = "Build"
+          owner = "AWS"
+          provider = "CodeBuild"
+          version = "1"
+          input_artifacts = ["SourceOutput"]
+          output_artifacts = ["BuildOutput"]
+          configuration = {
+            ProjectName = aws_codebuild_project.microservices_build["fraud-detection-engine"].name
+          }
+        }
+    }
+
+    stage {
+        name = "Deploy"
+
+        action {
+          name = "Deploy"
+          category = "Deploy"
+          owner = "AWS"
+          provider = "CodeDeployToECS"
+          input_artifacts = ["BuildOutput"]
+          version = "1"
+
+          configuration = {
+            ApplicationName = aws_codedeploy_app.codedeploy_app.name
+            DeploymentGroupName = aws_codedeploy_deployment_group.fraud_detection_deployment_group.deployment_group_name
+            TaskDefinitionTemplateArtifact = "BuildOutput"
+            AppSpecTemplateArtifact = "BuildOutput"
+            AppSpecTemplatePath = "cicd/fraud-appspec/appspec.yml"
+            TaskDefinitionTemplatePath = "services/fraud-detection-engine/taskdef.json"
+          }
+        }
+    }
+}
+
+# CodePipeline to automate Risk Assessment deployment process
+resource "aws_codepipeline" "risk_assessment" {
+    name = "risk-assessment-pipeline"
+    role_arn = aws_iam_role.codepipeline_role.arn
+
+    artifact_store {
+      type = "S3"
+      location = "${var.codepipeline_artifacts_bucket}"
+    }
+
+    stage {
+        name = "Source"
+        
+        action {
+            name = "GitHubSource"
+            category = "Source"
+            owner = "AWS"
+            provider = "CodeStarSourceConnection"
+            version = "1"
+            output_artifacts = ["SourceOutput"]
+            configuration = {
+                ConnectionArn = "arn:aws:codestar-connections:eu-west-2:463470963000:connection/5bcc636d-e780-4617-a94e-957c222cf902"
+                FullRepositoryId = "talhazaman2001/insurance-architecture"
+                BranchName = "main"
+            }
+        }
+    }
+
+    stage {
+        name = "Build"
+
+        action {
+          name = "Build"
+          category = "Build"
+          owner = "AWS"
+          provider = "CodeBuild"
+          version = "1"
+          input_artifacts = ["SourceOutput"]
+          output_artifacts = ["BuildOutput"]
+          configuration = {
+            ProjectName = aws_codebuild_project.microservices_build["risk-assessment-service"].name
+          }
+        }
+    }
+
+    stage {
+        name = "Deploy"
+
+        action {
+          name = "Deploy"
+          category = "Deploy"
+          owner = "AWS"
+          provider = "CodeDeployToECS"
+          input_artifacts = ["BuildOutput"]
+          version = "1"
+
+          configuration = {
+            ApplicationName = aws_codedeploy_app.codedeploy_app.name
+            DeploymentGroupName = aws_codedeploy_deployment_group.risk_assessment_deployment_group.deployment_group_name
+            TaskDefinitionTemplateArtifact = "BuildOutput"
+            AppSpecTemplateArtifact = "BuildOutput"
+            AppSpecTemplatePath = "cicd/risk-appspec/appspec.yml"
+            TaskDefinitionTemplatePath = "services/risk-assessment-service/taskdef.json"
+          }
+        }
+    }
+}
+
+# CodePipeline to automate Claims Processing deployment process
+resource "aws_codepipeline" "claims_processing" {
+    name = "claims-processing-pipeline"
+    role_arn = aws_iam_role.codepipeline_role.arn
+
+    artifact_store {
+      type = "S3"
+      location = "${var.codepipeline_artifacts_bucket}"
+    }
+
+    stage {
+        name = "Source"
+        
+        action {
+            name = "GitHubSource"
+            category = "Source"
+            owner = "AWS"
+            provider = "CodeStarSourceConnection"
+            version = "1"
+            output_artifacts = ["SourceOutput"]
+            configuration = {
+                ConnectionArn = "arn:aws:codestar-connections:eu-west-2:463470963000:connection/5bcc636d-e780-4617-a94e-957c222cf902"
+                FullRepositoryId = "talhazaman2001/insurance-architecture"
+                BranchName = "main"
+            }
+        }
+    }
+
+    stage {
+        name = "Build"
+
+        action {
+          name = "Build"
+          category = "Build"
+          owner = "AWS"
+          provider = "CodeBuild"
+          version = "1"
+          input_artifacts = ["SourceOutput"]
+          output_artifacts = ["BuildOutput"]
+          configuration = {
+            ProjectName = aws_codebuild_project.microservices_build["claims-processing-service"].name
+          }
+        }
+    }
+
+    stage {
+        name = "Deploy"
+
+        action {
+          name = "Deploy"
+          category = "Deploy"
+          owner = "AWS"
+          provider = "CodeDeployToECS"
+          input_artifacts = ["BuildOutput"]
+          version = "1"
+
+          configuration = {
+            ApplicationName = aws_codedeploy_app.codedeploy_app.name
+            DeploymentGroupName = aws_codedeploy_deployment_group.claims_processing_deployment_group.deployment_group_name
+            TaskDefinitionTemplateArtifact = "BuildOutput"
+            AppSpecTemplateArtifact = "BuildOutput"
+            AppSpecTemplatePath = "cicd/claims-appspec/appspec.yml"
+            TaskDefinitionTemplatePath = "services/claims-procesing-service/taskdef.json"
+          }
+        }
+    }
+}
 
