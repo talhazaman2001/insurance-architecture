@@ -15,7 +15,7 @@ phases:
     commands:
       - echo Build started on `date`
       - echo Building the Docker image...
-      - docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./fraud-detection
+      - docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./services/fraud-detection-engine
       - docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
   
   post_build:
