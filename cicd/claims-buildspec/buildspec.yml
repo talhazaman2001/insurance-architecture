@@ -31,5 +31,5 @@ artifacts:
   files:
     - imageDefinitions.json
     - imageDetail.json
-    - appspec.yml
-    - taskdef.json
+    - ./cicd/claims-appspec/appspec.yml
+    - ./services/claims-processing-service/taskdef.json
