@@ -31,5 +31,5 @@ artifacts:
   files:
     - imageDefinitions.json
     - imageDetail.json
-    - appspec.yml
-    - taskdef.json
+    - ./cicd/fraud-appspec/appspec.yml
+    - ./services/fraud-detection-engine/taskdef.json
