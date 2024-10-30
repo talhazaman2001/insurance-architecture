@@ -42,7 +42,7 @@ resource "aws_security_group" "alb_sg" {
 
 # Define the Target Groups for Blue and Green Deployment
 resource "aws_lb_target_group" "fraud_detection_engine_blue_tg" {
-    name = "fraud-detection-blue-tg"
+    name = "fraud-blue-tg"
     port = 5000
     protocol = "HTTP"
     vpc_id = aws_vpc.main_vpc.id
@@ -53,7 +53,7 @@ resource "aws_lb_target_group" "fraud_detection_engine_blue_tg" {
 }
 
 resource "aws_lb_target_group" "fraud_detection_engine_green_tg" {
-    name = "fraud-detection-green-tg"
+    name = "fraud-green-tg"
     port = 5000
     protocol = "HTTP"
     vpc_id = aws_vpc.main_vpc.id
@@ -64,7 +64,7 @@ resource "aws_lb_target_group" "fraud_detection_engine_green_tg" {
 }
 
 resource "aws_lb_target_group" "risk_assessment_service_blue_tg" {
-    name = "risk-assessment-blue-tg"
+    name = "risk-blue-tg"
     port = 8080
     protocol = "HTTP"
     vpc_id = aws_vpc.main_vpc.id
@@ -75,7 +75,7 @@ resource "aws_lb_target_group" "risk_assessment_service_blue_tg" {
 }
 
 resource "aws_lb_target_group" "risk_assessment_service_green_tg" {
-    name = "risk-assessment-green-tg"
+    name = "risk-green-tg"
     port = 8080
     protocol = "HTTP"
     vpc_id = aws_vpc.main_vpc.id
@@ -86,7 +86,7 @@ resource "aws_lb_target_group" "risk_assessment_service_green_tg" {
 }
 
 resource "aws_lb_target_group" "claims_processing_service_blue_tg" {
-    name = "claims-processing-blue-tg"
+    name = "claims-blue-tg"
     port = 6000
     protocol = "HTTP"
     vpc_id = aws_vpc.main_vpc.id
@@ -97,7 +97,7 @@ resource "aws_lb_target_group" "claims_processing_service_blue_tg" {
 }
 
 resource "aws_lb_target_group" "claims_processing_service_green_tg" {
-    name = "claims-processing-green-tg"
+    name = "claims-green-tg"
     port = 6000
     protocol = "HTTP"
     vpc_id = aws_vpc.main_vpc.id
