@@ -15,7 +15,7 @@ phases:
     commands:
       - echo Build started on `date`
       - echo Building the Docker image...
-      - docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./claims-processing
+      - docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./services/claims-processing-service
       - docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
   
   post_build:
