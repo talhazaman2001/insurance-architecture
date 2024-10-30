@@ -9,7 +9,7 @@
     "containerDefinitions": [
         {
             "name": "claims-processing-service",
-            "image": "<IMAGE1_NAME>",
+            "image": "463470963000.dkr.ecr.eu-west-2.amazonaws.com/claims-processing-service",
             "portMappings": [
                 {
                     "containerPort": 8000,
@@ -29,15 +29,7 @@
                     "name": "S3_BUCKET",
                     "value": "INSURANCE_BUCKET_ID"
                 }
-            ],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-group": "aws/fargate/claims-processing-service",
-                    "awslogs-region": "eu-west-2",
-                    "awslogs-stream-prefix": "claims"
-                }
-            }
+            ]
         },
         {
             "name": "xray-daemon",
@@ -48,15 +40,7 @@
                     "containerPort": 2000,
                     "protocol": "udp"
                 }
-            ],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-group": "XRAY_LOG_GROUP",
-                    "awslogs-region": "eu-west-2",
-                    "awslogs-stream-prefix": "xray"
-                }
-            }
+            ]
         }
     ]
 }
