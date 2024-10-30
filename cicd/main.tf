@@ -81,7 +81,7 @@ resource "aws_codedeploy_app" "codedeploy_app" {
 # Deployment Group for Fraud Detection Engine
 resource "aws_codedeploy_deployment_group" "fraud_detection_deployment_group" {
     app_name = aws_codedeploy_app.codedeploy_app.name
-    deployment_group_name = "FraudDetectionBlueGreenDeploymentGroups"
+    deployment_group_name = "FraudBlueGreenDeploymentGroups"
     service_role_arn = aws_iam_role.codedeploy_role.arn 
 
     auto_rollback_configuration {
@@ -132,7 +132,7 @@ resource "aws_codedeploy_deployment_group" "fraud_detection_deployment_group" {
 # Deployment Group for Risk Assessment Service
 resource "aws_codedeploy_deployment_group" "risk_assessment_deployment_group" {
     app_name = aws_codedeploy_app.codedeploy_app.name
-    deployment_group_name = "RiskAssessmentBlueGreenDeploymentGroups"
+    deployment_group_name = "RiskBlueGreenDeploymentGroups"
     service_role_arn = aws_iam_role.codedeploy_role.arn 
 
     auto_rollback_configuration {
@@ -183,7 +183,7 @@ resource "aws_codedeploy_deployment_group" "risk_assessment_deployment_group" {
 # Deployment Group for Claims Processing Service
 resource "aws_codedeploy_deployment_group" "claims_processing_deployment_group" {
     app_name = aws_codedeploy_app.codedeploy_app.name
-    deployment_group_name = "ClaimsProcessingBlueGreenDeploymentGroups"
+    deployment_group_name = "ClaimsBlueGreenDeploymentGroups"
     service_role_arn = aws_iam_role.codedeploy_role.arn 
 
     auto_rollback_configuration {
