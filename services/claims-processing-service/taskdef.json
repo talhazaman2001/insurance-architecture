@@ -9,7 +9,7 @@
     "containerDefinitions": [
         {
             "name": "claims-processing-service",
-            "image": "<IMAGE>",
+            "image": "<IMAGE1_NAME>",
             "portMappings": [
                 {
                     "containerPort": 8000,
