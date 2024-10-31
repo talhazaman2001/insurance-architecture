@@ -1,7 +1,7 @@
 {
     "family": "claims-processing-service-task",
-    "executionRoleArn": "EXECUTION_ROLE_ARN",
-    "taskRoleArn": "TASK_ROLE_ARN",
+    "executionRoleArn": "arn:aws:iam::463470963000:role/fargate-execution-role-talha",
+    "taskRoleArn": "arn:aws:iam::463470963000:role/fargate-task-role-talha",
     "networkMode": "awsvpc",
     "requiresCompatibilities": ["FARGATE"],
     "cpu": "1024",
