@@ -1,7 +1,7 @@
 {
     "family": "fraud-detection-engine-task",
-    "executionRoleArn": "arn:aws:iam::463470963000:role/fargate-execution-role-talha",
-    "taskRoleArn": "arn:aws:iam::463470963000:role/fargate-task-role-talha",
+    "executionRoleArn": "<EXECUTION_ROLE_ARN>",
+    "taskRoleArn": "<TASK_ROLE_ARN>",
     "networkMode": "awsvpc",
     "requiresCompatibilities": ["FARGATE"],
     "cpu": "1024",
