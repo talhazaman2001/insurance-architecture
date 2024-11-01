@@ -16,6 +16,10 @@ app = FastAPI(title = 'FraudDetectionEngine',
               description = "Fraud Detection for Insurance Claims",
               version = "1.0.0")
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+
 class ClaimData(BaseModel):
     claim_id: str = Field(..., description = "Unique identifier for the claim")
     policy_id: str = Field(..., description = "Associated Policy ID")
