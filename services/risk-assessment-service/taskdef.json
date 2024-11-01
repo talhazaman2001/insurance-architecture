@@ -9,7 +9,7 @@
     "containerDefinitions": [
         {
             "name": "risk-assessment-service",
-            "image": "463470963000.dkr.ecr.eu-west-2.amazonaws.com/risk-assessment-service",
+            "image": "<IMAGE1_NAME>",
             "portMappings": [
                 {
                     "containerPort": 8000,
