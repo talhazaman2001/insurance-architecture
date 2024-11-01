@@ -16,6 +16,10 @@ app = FastAPI(title = "Risk Assessment Service",
               description = "Risk Assessment for Insurance Policies",
               version = "1.0.0")
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+
 class PolicyData(BaseModel):
     policy_id: str = Field(..., description = "Unique identifier for the policy")
     customer_id: str = Field(..., description = "Customer identifier")
