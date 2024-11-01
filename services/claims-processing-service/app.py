@@ -16,6 +16,10 @@ app = FastAPI(title = "Claims Processing Service",
              description = "Automated claims processing and evaluation",
              version = "1.0.0")
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+
 class Claim(BaseModel):
     claim_id: str = Field(..., description = "Unique identifier for the claim")
     policy_id: str = Field(..., description = "Associated policy ID")
