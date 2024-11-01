@@ -9,7 +9,7 @@
     "containerDefinitions": [
         {
             "name": "fraud-detection-engine",
-            "image": "463470963000.dkr.ecr.eu-west-2.amazonaws.com/fraud-detection-engine",
+            "image": "<IMAGE1_NAME>",
             "portMappings": [
                 {
                     "containerPort": 8000,
